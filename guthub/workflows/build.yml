@@ -1,0 +1,49 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: "applicationId (ej: com.tuempresa.tuvpn)"
+        required: true
+        default: "com.tuempresa.tuvpn"
+      app_name:
+        description: "Nombre de la app"
+        required: true
+        default: "Mi VPN"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Rebranding
+        env:
+          APP_ID: ${{ inputs.app_id }}
+          APP_NAME: ${{ inputs.app_name }}
+        run: bash scripts/rebrand.sh "$APP_ID" "$APP_NAME"
+
+      - name: Descargar libv2ray.aar
+        run: |
+          mkdir -p V2rayNG/app/libs
+          curl -fL -o V2rayNG/app/libs/libv2ray.aar \
+            https://github.com/2dust/AndroidLibXrayLite/releases/latest/download/libv2ray.aar
+
+      - name: Compilar
+        working-directory: V2rayNG
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: V2rayNG/app/build/outputs/apk/**/*.apk
